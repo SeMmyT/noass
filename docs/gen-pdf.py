@@ -202,7 +202,7 @@ def build():
     p.new_page()
     p.set_y(10)
     p.hdr("Architecture")
-    next_y = p.place_img("noass-architecture.png", 20, p.get_y(), 170, margin_below=5)
+    next_y = p.place_img("noass-architecture-jeans.png", 20, p.get_y(), 170, margin_below=5)
     p.set_y(next_y)
     p.txt(
         "NOASS is a pure WebSocket client. The server stays on your machine, "
@@ -243,7 +243,7 @@ def build():
 
     # ========== PAGE 3: STAGED PLAN ==========
     p.new_page()
-    next_y = p.place_img("noass-banner.png", 5, 5, 200, margin_below=5)
+    next_y = p.place_img("noass-banner-jeans.png", 5, 5, 200, margin_below=5)
     p.set_y(next_y)
     p.hdr("Staged Plan")
 
@@ -295,7 +295,7 @@ def build():
     p.new_page()
     p.set_y(10)
     p.hdr("Skin System")
-    next_y = p.place_img("noass-skins-preview.png", 30, p.get_y(), 150, margin_below=5)
+    next_y = p.place_img("noass-skins-preview-jeans.png", 30, p.get_y(), 150, margin_below=5)
     p.set_y(next_y)
     p.txt(
         "Every visual parameter is controlled by a Skin manifest: accent color, "
@@ -353,7 +353,7 @@ def build():
     p.new_page()
     p.set_y(10)
     p.hdr("Marketplace")
-    next_y = p.place_img("noass-marketplace.png", 70, p.get_y(), 50, margin_below=5)
+    next_y = p.place_img("noass-marketplace-jeans.png", 70, p.get_y(), 50, margin_below=5)
     p.set_y(next_y)
     p.txt(
         "Browse, preview, and apply skins. Featured row + grid layout. "
