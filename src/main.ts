@@ -7,6 +7,7 @@ import { drawUI } from "./ui";
 import { initControls, drawControls, showReadOverlay } from "./controls";
 import { connectWS } from "./ws-client";
 import { DEFAULT_SKIN, getBundledSkins } from "./skins";
+import { startMock, isMockRunning } from "./mock";
 
 function createAppState(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): AppState {
   // Check URL params for skin override
@@ -67,6 +68,11 @@ function animate(app: AppState): void {
       drawGraph(app);
       drawUI(app);
       drawControls(app);
+
+      // DEMO badge
+      if (isMockRunning()) {
+        drawDitheredText(app.ctx, "DEMO", app.width - 15, app.isMobile ? 14 : 18, app.isMobile ? 9 : 11, { color: "accent", align: "right", bold: true }, app.skin);
+      }
     } else {
       drawDitheredText(
         app.ctx,
@@ -126,10 +132,20 @@ function init(): void {
 
   initControls(app);
 
-  // WS URL from URL params or default
+  // Demo mode or WebSocket
   const params = new URLSearchParams(location.search);
-  const wsUrl = params.get("ws") || `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`;
-  connectWS(app, wsUrl, (msg) => handleMessage(app, msg));
+  if (params.get("demo") === "1") {
+    startMock(app);
+  } else {
+    const wsUrl = params.get("ws") || `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`;
+    connectWS(app, wsUrl, (msg) => handleMessage(app, msg));
+    // Fall back to mock after 5s if no data received
+    setTimeout(() => {
+      if (!app.state && !isMockRunning()) {
+        startMock(app);
+      }
+    }, 5000);
+  }
 
   requestWakeLock();
   animate(app);
