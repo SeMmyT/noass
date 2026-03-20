@@ -11,6 +11,10 @@ import { startMock, isMockRunning } from "./mock";
 import { toggleSettings, isSettingsVisible } from "./settings";
 import { currentScreen, pushScreen, popScreen } from "./screens";
 import { drawMarketplace, handleMarketplaceTap, handleMarketplaceScroll, resetMarketplace } from "./marketplace";
+import { updateWeather, drawWeather, setWeather } from "./weather";
+import { requestMotionPermission } from "./physics-device";
+import { registerModule, checkAchievements, trackEvent } from "./modules/registry";
+import { PLACEHOLDER_MODULES } from "./modules/placeholders";
 
 function createAppState(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): AppState {
   // Check URL params for skin override
@@ -113,6 +117,10 @@ function animate(app: AppState): void {
       }
     }
 
+    // Weather particles (before post-processing)
+    updateWeather(app);
+    drawWeather(app.ctx, app.skin);
+
     applyVignette(app.ctx, app.width, app.height, app.skin);
     applyScanlines(app.ctx, app.width, app.height, app.skin);
 
@@ -154,6 +162,8 @@ function handleMessage(app: AppState, msg: ServerMessage): void {
       app.state = msg;
       app.lastDataTime = performance.now();
       updateGraph(app);
+      trackEvent("context_update", msg.stats.total_ctx_k);
+      checkAchievements();
       break;
     case "readResult":
       showReadOverlay(msg.target, msg.content, app.skin);
@@ -235,6 +245,20 @@ function init(): void {
       }
     }, 5000);
   }
+
+  // Weather from URL param
+  const weatherParam = params.get("weather");
+  if (weatherParam) {
+    setWeather(weatherParam as any);
+  }
+
+  // Register EEOAO modules
+  for (const mod of PLACEHOLDER_MODULES) {
+    registerModule(mod);
+  }
+
+  // Request motion permission on first user interaction
+  document.addEventListener("click", () => requestMotionPermission(), { once: true });
 
   requestWakeLock();
   animate(app);

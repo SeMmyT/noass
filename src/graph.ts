@@ -9,6 +9,7 @@ import {
   drawStippledLine,
   clearCircleCache,
 } from "./renderer";
+import { getDevicePhysics } from "./physics-device";
 
 interface GraphConfig {
   repulsion: number;
@@ -127,6 +128,24 @@ function stepPhysics(app: AppState): void {
           a.vy += dy * cfg.attraction;
         }
       }
+    }
+  }
+
+  // Device gravity (accelerometer)
+  const dp = getDevicePhysics();
+  const gravStr = app.skin.pulseAmp * 0.8; // reuse pulseAmp as gravity proxy
+  if (dp.gravityX !== 0 || dp.gravityY !== 0) {
+    for (const n of nodes) {
+      n.vx += dp.gravityX * gravStr;
+      n.vy += dp.gravityY * gravStr;
+    }
+  }
+
+  // Shake scatter
+  if (dp.shaking) {
+    for (const n of nodes) {
+      n.vx += (Math.random() - 0.5) * 40;
+      n.vy += (Math.random() - 0.5) * 40;
     }
   }
 
