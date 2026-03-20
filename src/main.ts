@@ -8,6 +8,7 @@ import { initControls, drawControls, showReadOverlay } from "./controls";
 import { connectWS } from "./ws-client";
 import { DEFAULT_SKIN, getBundledSkins } from "./skins";
 import { startMock, isMockRunning } from "./mock";
+import { toggleSettings, isSettingsVisible } from "./settings";
 
 function createAppState(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): AppState {
   // Check URL params for skin override
@@ -71,7 +72,12 @@ function animate(app: AppState): void {
 
       // DEMO badge
       if (isMockRunning()) {
-        drawDitheredText(app.ctx, "DEMO", app.width - 15, app.isMobile ? 14 : 18, app.isMobile ? 9 : 11, { color: "accent", align: "right", bold: true }, app.skin);
+        drawDitheredText(app.ctx, "DEMO", app.width - 40, app.isMobile ? 14 : 18, app.isMobile ? 9 : 11, { color: "accent", align: "right", bold: true }, app.skin);
+      }
+
+      // Gear icon (top-right)
+      if (!isSettingsVisible()) {
+        drawDitheredText(app.ctx, "[S]", app.width - 15, app.isMobile ? 14 : 18, app.isMobile ? 9 : 11, { color: "white", align: "right" }, app.skin);
       }
     } else {
       drawDitheredText(
@@ -126,11 +132,21 @@ function init(): void {
   if (!ctx) return;
 
   const app = createAppState(canvas, ctx);
+  const onMessage = (msg: ServerMessage) => handleMessage(app, msg);
 
   resize(app);
   window.addEventListener("resize", () => resize(app));
 
   initControls(app);
+
+  // S key opens settings
+  document.addEventListener("keydown", (e) => {
+    if (e.key.toUpperCase() === "S" && !e.ctrlKey && !e.metaKey) {
+      const active = document.activeElement;
+      if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
+      toggleSettings(app, onMessage);
+    }
+  });
 
   // Demo mode or WebSocket
   const params = new URLSearchParams(location.search);
@@ -138,7 +154,7 @@ function init(): void {
     startMock(app);
   } else {
     const wsUrl = params.get("ws") || `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}`;
-    connectWS(app, wsUrl, (msg) => handleMessage(app, msg));
+    connectWS(app, wsUrl, onMessage);
     // Fall back to mock after 5s if no data received
     setTimeout(() => {
       if (!app.state && !isMockRunning()) {
