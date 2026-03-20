@@ -5,7 +5,7 @@ import { drawDitheredText, applyScanlines, applyVignette, clearTextCache, clearC
 import { drawGraph, updateGraph } from "./graph";
 import { drawUI } from "./ui";
 import { initControls, drawControls, showReadOverlay } from "./controls";
-import { connectWS } from "./ws-client";
+import { connectWS, getConnectionStatus } from "./ws-client";
 import { DEFAULT_SKIN, getBundledSkins } from "./skins";
 import { startMock, isMockRunning } from "./mock";
 import { toggleSettings, isSettingsVisible } from "./settings";
@@ -60,9 +60,22 @@ function resize(app: AppState): void {
   clearCircleCache();
 }
 
+let frameCount = 0;
+let lastFpsTime = 0;
+let fps = 0;
+const showFps = new URLSearchParams(location.search).get("fps") === "1";
+
 function animate(app: AppState): void {
   if (!app.paused) {
     app.time = performance.now();
+
+    // FPS counter
+    frameCount++;
+    if (app.time - lastFpsTime > 1000) {
+      fps = frameCount;
+      frameCount = 0;
+      lastFpsTime = app.time;
+    }
 
     const screen = currentScreen();
 
@@ -102,6 +115,23 @@ function animate(app: AppState): void {
 
     applyVignette(app.ctx, app.width, app.height, app.skin);
     applyScanlines(app.ctx, app.width, app.height, app.skin);
+
+    // Connection status dot (bottom-left)
+    if (!isMockRunning()) {
+      const cs = getConnectionStatus();
+      const dotColor = cs === "connected" ? "#00ff41" : cs === "reconnecting" ? "#ffb000" : "#ff2222";
+      app.ctx.beginPath();
+      app.ctx.arc(12, app.height - 12, 4, 0, Math.PI * 2);
+      app.ctx.fillStyle = dotColor;
+      app.ctx.fill();
+    }
+
+    // FPS counter (debug mode)
+    if (showFps) {
+      app.ctx.fillStyle = "#888";
+      app.ctx.font = "10px monospace";
+      app.ctx.fillText(`${fps} fps`, 5, 12);
+    }
   }
 
   requestAnimationFrame(() => animate(app));

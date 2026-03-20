@@ -2,16 +2,25 @@
 
 import type { AppState, ServerMessage } from "./types";
 
+export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "reconnecting";
+
+let status: ConnectionStatus = "disconnected";
+
+export function getConnectionStatus(): ConnectionStatus {
+  return status;
+}
+
 export function connectWS(
   state: AppState,
   url: string,
   onMessage: (msg: ServerMessage) => void
 ): void {
+  status = status === "disconnected" ? "connecting" : "reconnecting";
   const ws = new WebSocket(url);
   state.ws = ws;
 
   ws.addEventListener("open", () => {
-    console.log("WS connected to", url);
+    status = "connected";
   });
 
   ws.addEventListener("message", (e) => {
@@ -24,7 +33,7 @@ export function connectWS(
   });
 
   ws.addEventListener("close", () => {
-    console.log("WS disconnected, reconnecting in 3s...");
+    status = "reconnecting";
     state.ws = null;
     setTimeout(() => connectWS(state, url, onMessage), 3000);
   });
