@@ -61,6 +61,7 @@ function startListening(): void {
   listening = true;
 
   window.addEventListener("devicemotion", (e: DeviceMotionEvent) => {
+    if (!listening) return;
     const ag = e.accelerationIncludingGravity;
     if (!ag) return;
 

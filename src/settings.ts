@@ -7,6 +7,31 @@ import { clearTextCache, clearCircleCache } from "./renderer";
 import { connectWS } from "./ws-client";
 import { startMock, stopMock, isMockRunning } from "./mock";
 
+// Safe DOM helpers
+function el(tag: string, className?: string): HTMLElement {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  return e;
+}
+
+function textEl(tag: string, text: string, className?: string): HTMLElement {
+  const e = el(tag, className);
+  e.textContent = text;
+  return e;
+}
+
+function toggleEl(id: string, label: string, checked: boolean): HTMLLabelElement {
+  const lbl = document.createElement("label");
+  lbl.className = "settings-toggle";
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.id = id;
+  cb.checked = checked;
+  lbl.appendChild(cb);
+  lbl.appendChild(document.createTextNode(` ${label}`));
+  return lbl;
+}
+
 let overlay: HTMLDivElement | null = null;
 let visible = false;
 
@@ -37,48 +62,73 @@ function showSettings(app: AppState, onMessage: (msg: any) => void): void {
 
   const skins = getBundledSkins();
 
-  overlay.innerHTML = `
-    <div class="settings-panel">
-      <div class="settings-header">
-        <span class="settings-title">SETTINGS</span>
-        <span class="settings-close" id="settings-close">&times;</span>
-      </div>
-      <div class="settings-body">
-        <label class="settings-label">SERVER URL</label>
-        <input type="text" id="settings-ws-url" class="settings-input"
-          value="${app.ws ? 'connected' : ''}"
-          placeholder="ws://192.168.1.x:3333" />
-        <button id="settings-connect" class="settings-btn">CONNECT</button>
-        <button id="settings-demo" class="settings-btn settings-btn-dim">${isMockRunning() ? 'STOP DEMO' : 'START DEMO'}</button>
+  // Build DOM safely — no innerHTML with dynamic values
+  const panel = el("div", "settings-panel");
+  const header = el("div", "settings-header");
+  header.appendChild(textEl("span", "SETTINGS", "settings-title"));
+  const closeBtn = textEl("span", "\u00d7", "settings-close");
+  closeBtn.id = "settings-close";
+  header.appendChild(closeBtn);
+  panel.appendChild(header);
 
-        <label class="settings-label" style="margin-top:16px">SKIN</label>
-        <div class="settings-skin-grid" id="settings-skin-grid">
-          ${skins.map(s => `
-            <div class="settings-skin-card ${s.id === app.skin.id ? 'active' : ''}" data-skin="${s.id}">
-              <div class="settings-skin-swatch" style="background:#${s.accent}"></div>
-              <div class="settings-skin-name">${s.name}</div>
-            </div>
-          `).join("")}
-        </div>
+  const body = el("div", "settings-body");
 
-        <label class="settings-label" style="margin-top:16px">DISPLAY</label>
-        <label class="settings-toggle">
-          <input type="checkbox" id="settings-scanlines" ${app.skin.scanlineOpacity > 0 ? 'checked' : ''} />
-          Scanlines
-        </label>
-        <label class="settings-toggle">
-          <input type="checkbox" id="settings-vignette" ${app.skin.vignetteStrength > 0 ? 'checked' : ''} />
-          Vignette
-        </label>
+  body.appendChild(textEl("label", "SERVER URL", "settings-label"));
+  const wsInput = document.createElement("input");
+  wsInput.type = "text";
+  wsInput.id = "settings-ws-url";
+  wsInput.className = "settings-input";
+  wsInput.value = app.ws ? "connected" : "";
+  wsInput.placeholder = "ws://192.168.1.x:3333";
+  body.appendChild(wsInput);
 
-        <div class="settings-about">
-          <span style="color:#${app.skin.accent}">#0A55</span> v0.1.0<br/>
-          Not Only Agent Screen Saver<br/>
-          <span style="color:#888">SeMmy + Claude Opus 4.6</span>
-        </div>
-      </div>
-    </div>
-  `;
+  const connectBtn = textEl("button", "CONNECT", "settings-btn");
+  connectBtn.id = "settings-connect";
+  body.appendChild(connectBtn);
+
+  const demoBtn = textEl("button", isMockRunning() ? "STOP DEMO" : "START DEMO", "settings-btn settings-btn-dim");
+  demoBtn.id = "settings-demo";
+  body.appendChild(demoBtn);
+
+  const skinLabel = textEl("label", "SKIN", "settings-label");
+  skinLabel.style.marginTop = "16px";
+  body.appendChild(skinLabel);
+
+  const skinGrid = el("div", "settings-skin-grid");
+  skinGrid.id = "settings-skin-grid";
+  for (const s of skins) {
+    const card = el("div", `settings-skin-card${s.id === app.skin.id ? " active" : ""}`);
+    card.dataset.skin = s.id;
+    const swatch = el("div", "settings-skin-swatch");
+    swatch.style.background = `#${s.accent}`;
+    card.appendChild(swatch);
+    card.appendChild(textEl("div", s.name, "settings-skin-name"));
+    skinGrid.appendChild(card);
+  }
+  body.appendChild(skinGrid);
+
+  const dispLabel = textEl("label", "DISPLAY", "settings-label");
+  dispLabel.style.marginTop = "16px";
+  body.appendChild(dispLabel);
+
+  body.appendChild(toggleEl("settings-scanlines", "Scanlines", app.skin.scanlineOpacity > 0));
+  body.appendChild(toggleEl("settings-vignette", "Vignette", app.skin.vignetteStrength > 0));
+
+  const about = el("div", "settings-about");
+  const accentSpan = textEl("span", "#0A55");
+  accentSpan.style.color = `#${app.skin.accent}`;
+  about.appendChild(accentSpan);
+  about.appendChild(document.createTextNode(" v0.1.0"));
+  about.appendChild(document.createElement("br"));
+  about.appendChild(document.createTextNode("Not Only Agent Screen Saver"));
+  about.appendChild(document.createElement("br"));
+  const credit = textEl("span", "SeMmy + Claude Opus 4.6");
+  credit.style.color = "#888";
+  about.appendChild(credit);
+  body.appendChild(about);
+
+  panel.appendChild(body);
+  overlay.appendChild(panel);
 
   document.body.appendChild(overlay);
 

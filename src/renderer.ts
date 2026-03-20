@@ -52,6 +52,9 @@ export function floydSteinbergDither(imageData: ImageData): ImageData {
   return imageData;
 }
 
+// ── Shared measurement canvas (avoid creating per cache miss) ────────────────
+const _measureCtx = document.createElement("canvas").getContext("2d")!;
+
 // ── Dithered Text Cache ──────────────────────────────────────────────────────
 const _textCache = new Map<string, { canvas: HTMLCanvasElement; width: number; height: number }>();
 const _TEXT_CACHE_MAX = 512;
@@ -82,9 +85,8 @@ export function drawDitheredText(
     const weight = opts.bold ? "700" : "400";
     const font = `${weight} ${fontSize}px '${skin.fontFamily}', monospace`;
 
-    const measure = document.createElement("canvas").getContext("2d")!;
-    measure.font = font;
-    const metrics = measure.measureText(text);
+    _measureCtx.font = font;
+    const metrics = _measureCtx.measureText(text);
     const tw = Math.ceil(metrics.width) + 4;
     const th = Math.ceil(fontSize * 1.4) + 4;
 
@@ -244,7 +246,14 @@ export function drawStippledLine(
   }
 }
 
-// ── Draw Dithered Box ────────────────────────────────────────────────────────
+// ── Draw Dithered Box (cached) ───────────────────────────────────────────────
+const _boxCache = new Map<string, HTMLCanvasElement>();
+const _BOX_CACHE_MAX = 64;
+
+export function clearBoxCache(): void {
+  _boxCache.clear();
+}
+
 export function drawDitheredBox(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -253,14 +262,22 @@ export function drawDitheredBox(
   h: number,
   fillGray: number
 ): void {
-  const off = document.createElement("canvas");
-  off.width = w;
-  off.height = h;
-  const offCtx = off.getContext("2d")!;
-  offCtx.fillStyle = `rgb(${fillGray},${fillGray},${fillGray})`;
-  offCtx.fillRect(0, 0, w, h);
-  const imgData = offCtx.getImageData(0, 0, w, h);
-  floydSteinbergDither(imgData);
-  offCtx.putImageData(imgData, 0, 0);
-  ctx.drawImage(off, Math.round(x), Math.round(y));
+  const key = `${w}|${h}|${fillGray}`;
+  let cached = _boxCache.get(key);
+  if (!cached) {
+    cached = document.createElement("canvas");
+    cached.width = w;
+    cached.height = h;
+    const offCtx = cached.getContext("2d")!;
+    offCtx.fillStyle = `rgb(${fillGray},${fillGray},${fillGray})`;
+    offCtx.fillRect(0, 0, w, h);
+    const imgData = offCtx.getImageData(0, 0, w, h);
+    floydSteinbergDither(imgData);
+    offCtx.putImageData(imgData, 0, 0);
+    if (_boxCache.size >= _BOX_CACHE_MAX) {
+      _boxCache.delete(_boxCache.keys().next().value!);
+    }
+    _boxCache.set(key, cached);
+  }
+  ctx.drawImage(cached, Math.round(x), Math.round(y));
 }

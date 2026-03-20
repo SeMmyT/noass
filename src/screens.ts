@@ -10,6 +10,7 @@ export function currentScreen(): Screen {
 
 export function pushScreen(screen: Screen): void {
   if (currentScreen() !== screen) {
+    if (screenStack.length >= 8) screenStack.splice(1, 1); // cap depth
     screenStack.push(screen);
   }
 }

@@ -67,6 +67,7 @@ export function updateGraph(app: AppState): void {
     }
   }
 
+  const prevCount = app.nodes.length;
   app.nodes = newNodes;
 
   // Validate selectedNode
@@ -78,7 +79,10 @@ export function updateGraph(app: AppState): void {
     }
   }
 
-  clearCircleCache();
+  // Only clear cache when node count changes (radius changes animate smoothly via targetRadius)
+  if (newNodes.length !== prevCount) {
+    clearCircleCache();
+  }
 }
 
 function stepPhysics(app: AppState): void {
