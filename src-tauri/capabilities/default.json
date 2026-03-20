@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "NOASS main window capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "store:default"
+  ]
+}
