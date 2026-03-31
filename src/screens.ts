@@ -1,6 +1,6 @@
 // ── screens.ts — Screen state machine + navigation ────────────────────────────
 
-export type Screen = "dashboard" | "settings" | "marketplace" | "read-overlay";
+export type Screen = "dashboard" | "settings" | "marketplace" | "read-overlay" | `module:${string}`;
 
 let screenStack: Screen[] = ["dashboard"];
 

@@ -141,6 +141,26 @@ export function getAchievements(): Achievement[] {
   return achievements;
 }
 
+// ── Module grid hit-test ──────────────────────────────────────────────────────
+export function hitTestModuleGrid(app: AppState, mx: number, my: number): string | null {
+  const mods = listModules(false);
+  if (mods.length === 0) return null;
+
+  const x = 15;
+  const y = app.isMobile ? 50 : 60;
+  const cardW = app.isMobile ? 60 : 80;
+  const cardH = app.isMobile ? 50 : 60;
+  const gap = 10;
+
+  for (let i = 0; i < mods.length; i++) {
+    const cx = x + i * (cardW + gap);
+    if (mx >= cx && mx <= cx + cardW && my >= y && my <= y + cardH) {
+      return mods[i].id;
+    }
+  }
+  return null;
+}
+
 // ── Module drawer (Canvas) ────────────────────────────────────────────────────
 export function drawModuleGrid(ctx: CanvasRenderingContext2D, app: AppState): void {
   const mods = listModules(false);

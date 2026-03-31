@@ -13,7 +13,7 @@ import { currentScreen, pushScreen, popScreen } from "./screens";
 import { drawMarketplace, handleMarketplaceTap, handleMarketplaceScroll, resetMarketplace } from "./marketplace";
 import { updateWeather, drawWeather, setWeather } from "./weather";
 import { requestMotionPermission } from "./physics-device";
-import { registerModule, checkAchievements, trackEvent } from "./modules/registry";
+import { registerModule, checkAchievements, trackEvent, getActiveModule, activateModule, deactivateModule, createModuleContext, drawModuleGrid, hitTestModuleGrid } from "./modules/registry";
 import { PLACEHOLDER_MODULES } from "./modules/placeholders";
 
 function createAppState(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): AppState {
@@ -85,6 +85,14 @@ function animate(app: AppState): void {
 
     if (screen === "marketplace") {
       drawMarketplace(app);
+    } else if (screen.startsWith("module:")) {
+      // ── Active module render ──────────────────────────────────────────
+      const mod = getActiveModule();
+      if (mod) {
+        mod.render(app.ctx, createModuleContext(app));
+      }
+      // Back hint
+      drawDitheredText(app.ctx, "[ESC] BACK", 15, app.height - 15, 9, { color: "white" }, app.skin);
     } else {
       // Dashboard
       app.ctx.fillStyle = `#${app.skin.bgColor}`;
@@ -93,6 +101,7 @@ function animate(app: AppState): void {
       if (app.state) {
         drawGraph(app);
         drawUI(app);
+        drawModuleGrid(app.ctx, app);
         drawControls(app);
 
         // DEMO badge
@@ -204,17 +213,28 @@ function init(): void {
         pushScreen("marketplace");
       }
     } else if (key === "ESCAPE" || key === "BACKSPACE") {
-      if (currentScreen() !== "dashboard") {
+      const cur = currentScreen();
+      if (cur.startsWith("module:")) {
+        deactivateModule();
+        popScreen();
+      } else if (cur !== "dashboard") {
         popScreen();
       }
     }
   });
 
-  // Marketplace tap handler
+  // Marketplace + module grid tap handler
   app.canvas.addEventListener("click", (e) => {
-    if (currentScreen() === "marketplace") {
+    const screen = currentScreen();
+    if (screen === "marketplace") {
       const stay = handleMarketplaceTap(app, e.clientX, e.clientY);
       if (!stay) popScreen();
+    } else if (screen === "dashboard") {
+      const modId = hitTestModuleGrid(app, e.clientX, e.clientY);
+      if (modId) {
+        activateModule(modId, app);
+        pushScreen(`module:${modId}`);
+      }
     }
   });
 

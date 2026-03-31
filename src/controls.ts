@@ -4,6 +4,8 @@
 import type { AppState, GraphNode, Skin } from "./types";
 import { drawDitheredText, drawDitheredBox } from "./renderer";
 import { sendCommand } from "./ws-client";
+import { getActiveModule, createModuleContext } from "./modules/registry";
+import { currentScreen } from "./screens";
 
 // ── Read overlay ─────────────────────────────────────────────────────────────
 export function showReadOverlay(target: string, content: string, skin: Skin): void {
@@ -97,6 +99,16 @@ function executeAction(app: AppState, action: string): void {
 // ── Init controls: event listeners ───────────────────────────────────────────
 export function initControls(app: AppState): void {
   function handleTap(mx: number, my: number): void {
+    // Dispatch to active module first
+    const screen = currentScreen();
+    if (screen.startsWith("module:")) {
+      const mod = getActiveModule();
+      if (mod) {
+        mod.handleInput("tap", mx, my, createModuleContext(app));
+      }
+      return;
+    }
+
     if (app.showContextMenu) {
       const idx = hitTestMenu(app, mx, my);
       if (idx >= 0) {
