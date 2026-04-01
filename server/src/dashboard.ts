@@ -80,7 +80,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 
 /* ── Fullscreen view ── */
 .fullscreen{display:flex;flex-direction:column;height:100%}
-.fs-header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.fs-header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
 .fs-back{background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px;padding:4px 8px}
 .fs-back:hover{color:var(--text)}
 .fs-title{font-weight:600;font-size:14px;flex:1}
@@ -93,6 +93,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .fs-log .entry-detail{color:var(--text)}
 .fs-log .entry.error .entry-event{color:var(--red)}
 .fs-log .entry.awaiting .entry-event{color:var(--yellow)}
+.fs-log .entry.tool-evt{display:none}
+.fs-log.show-tools .entry.tool-evt{display:block}
+.filter-toggle{font-size:10px;color:var(--dim);display:flex;align-items:center;gap:4px;cursor:pointer;margin-left:auto}
+.filter-toggle input{accent-color:var(--accent)}
 .fs-input{flex-shrink:0;padding:8px 12px;border-top:1px solid var(--border);background:var(--bg)}
 
 /* ── Grid view ── */
@@ -137,6 +141,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 let lastMsg = null;
 let currentView = 'cards';
 let focusedSession = null;
+let showToolCalls = false;
+const TOOL_EVENTS = new Set(['PreToolUse','PostToolUse','PostToolUseFailure']);
 const eventLog = {}; // session_id -> [{ts, event, tool, detail}]
 const container = document.getElementById('main');
 const connDot = document.getElementById('conn');
@@ -183,15 +189,29 @@ function sendInput(sessionId, text){
   fetch('/session/'+encodeURIComponent(sessionId)+'/input',{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({text:text.trim()})
-  });
+  }).then(r=>{
+    if(r.ok) showToast('Sent "'+text.trim().slice(0,20)+'" → '+sessionId.slice(0,8));
+    else showToast('Failed to send', true);
+  }).catch(()=>showToast('Failed to send', true));
 }
 
 function sendBroadcast(){
   const inp=document.getElementById('bc-input');
   const text=inp.value.trim();
   if(!text)return;
-  fetch('/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  fetch('/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})})
+    .then(r=>{if(r.ok) showToast('Broadcast "'+text.slice(0,20)+'" → all sessions');})
+    .catch(()=>showToast('Broadcast failed', true));
   inp.value='';
+}
+
+function showToast(msg, isError){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:'+(isError?'var(--red)':'var(--green)')+';color:#000;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;z-index:100;opacity:0;transition:opacity .2s';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(()=>t.style.opacity='1');
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},2000);
 }
 
 // ── Cards View ──
@@ -328,8 +348,9 @@ function renderFullscreen(msg){
       <span class="badge \${statusColor(st)}">\${st.replace(/_/g,' ')}</span>
       <span class="fs-title">\${esc(p.name)}</span>
       <span class="fs-meta">\${p.ctx_pct?Math.round(p.ctx_pct)+'% ctx':''} \${p.cost_usd!=null?'$'+p.cost_usd.toFixed(2):''} \${p.model||''}</span>
+      <label class="filter-toggle"><input type="checkbox" id="show-tools" \${showToolCalls?'checked':''}> Tool calls</label>
     </div>
-    <div class="fs-log"></div>
+    <div class="fs-log\${showToolCalls?' show-tools':''}"></div>
     <div class="fs-input">
       <div class="qa-row">
         <button class="qa" data-cmd="y">y</button>
@@ -347,15 +368,20 @@ function renderFullscreen(msg){
 
   const logEl = fs.querySelector('.fs-log');
   for(const e of log){
+    const isToolEvt = TOOL_EVENTS.has(e.event);
     const cls = e.event==='PostToolUseFailure'?'error':
                 (e.event==='Stop'||e.event==='Notification'||e.event==='PermissionRequest')?'awaiting':'';
     const div = document.createElement('div');
-    div.className='entry'+(cls?' '+cls:'');
+    div.className='entry'+(cls?' '+cls:'')+(isToolEvt?' tool-evt':'');
     div.innerHTML=\`<span class="entry-time">\${fmtTime(e.timestamp)}</span><span class="entry-event">\${esc(e.event)}</span> <span class="entry-detail">\${esc(e.detail||'')}</span>\`;
     logEl.appendChild(div);
   }
   logEl.scrollTop = logEl.scrollHeight;
 
+  fs.querySelector('#show-tools').addEventListener('change',function(){
+    showToolCalls=this.checked;
+    logEl.classList.toggle('show-tools',showToolCalls);
+  });
   fs.querySelector('.fs-back').addEventListener('click',()=>{
     focusedSession=null;currentView='cards';setActiveViewBtn('cards');render();
   });
@@ -389,10 +415,11 @@ function updateFullscreenLive(fs, p, msg){
   const rendered = logEl.children.length;
   for(let i=rendered;i<log.length;i++){
     const e = log[i];
+    const isToolEvt = TOOL_EVENTS.has(e.event);
     const cls = e.event==='PostToolUseFailure'?'error':
                 (e.event==='Stop'||e.event==='Notification'||e.event==='PermissionRequest')?'awaiting':'';
     const div = document.createElement('div');
-    div.className='entry'+(cls?' '+cls:'');
+    div.className='entry'+(cls?' '+cls:'')+(isToolEvt?' tool-evt':'');
     div.innerHTML=\`<span class="entry-time">\${fmtTime(e.timestamp)}</span><span class="entry-event">\${esc(e.event)}</span> <span class="entry-detail">\${esc(e.detail||'')}</span>\`;
     logEl.appendChild(div);
   }
