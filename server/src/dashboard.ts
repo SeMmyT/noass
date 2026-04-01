@@ -96,8 +96,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .fs-input{flex-shrink:0;padding:8px 12px;border-top:1px solid var(--border);background:var(--bg)}
 
 /* ── Grid view ── */
-.grid-view{display:grid;height:100%;gap:4px;padding:4px}
-.grid-2x2{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr auto}
+.grid-view{display:grid;height:100%;gap:4px;padding:4px;overflow:hidden}
+.grid-2x2{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr minmax(120px,auto)}
 .grid-cell{background:var(--card);border:1px solid var(--border);border-radius:6px;
   display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .grid-cell.awaiting_input{border-color:var(--yellow)}
@@ -198,6 +198,10 @@ function sendBroadcast(){
 
 function renderCards(msg){
   container.className='cards-view';
+  // Clean up non-card elements (orphaned fullscreen/grid divs)
+  for(const child of [...container.children]){
+    if(!child.id?.startsWith('c-') && !child.classList.contains('empty')) child.remove();
+  }
   // Update existing or create new
   const seen = new Set();
   for(const p of msg.panes){
@@ -299,10 +303,18 @@ function openFullscreen(sessionId){
 
 function renderFullscreen(msg){
   const p = msg.panes.find(p=>p.session_id===focusedSession);
-  if(!p){currentView='cards';render();return;}
+  if(!p){currentView='cards';focusedSession=null;setActiveViewBtn('cards');render();return;}
+
+  // Only rebuild if not already showing this session's fullscreen
+  if(container.querySelector('.fullscreen') && container.dataset.fsSid===focusedSession){
+    // Just update header + append new log entries
+    updateFullscreenLive(container.querySelector('.fullscreen'), p, msg);
+    return;
+  }
 
   container.className='';
   container.innerHTML='';
+  container.dataset.fsSid=focusedSession;
 
   const fs = document.createElement('div');
   fs.className='fullscreen';
@@ -360,6 +372,34 @@ function renderFullscreen(msg){
   });
 
   container.appendChild(fs);
+}
+
+function updateFullscreenLive(fs, p, msg){
+  const st = p.status||'idle';
+  const badgeEl = fs.querySelector('.badge');
+  badgeEl.className='badge '+statusColor(st);
+  badgeEl.textContent=st.replace(/_/g,' ');
+
+  const metaEl = fs.querySelector('.fs-meta');
+  metaEl.textContent=\`\${p.ctx_pct?Math.round(p.ctx_pct)+'% ctx':''} \${p.cost_usd!=null?'$'+p.cost_usd.toFixed(2):''} \${p.model||''}\`;
+
+  // Append only new log entries
+  const logEl = fs.querySelector('.fs-log');
+  const log = eventLog[focusedSession]||[];
+  const rendered = logEl.children.length;
+  for(let i=rendered;i<log.length;i++){
+    const e = log[i];
+    const cls = e.event==='PostToolUseFailure'?'error':
+                (e.event==='Stop'||e.event==='Notification'||e.event==='PermissionRequest')?'awaiting':'';
+    const div = document.createElement('div');
+    div.className='entry'+(cls?' '+cls:'');
+    div.innerHTML=\`<span class="entry-time">\${fmtTime(e.timestamp)}</span><span class="entry-event">\${esc(e.event)}</span> <span class="entry-detail">\${esc(e.detail||'')}</span>\`;
+    logEl.appendChild(div);
+  }
+  // Auto-scroll if near bottom
+  if(logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 100){
+    logEl.scrollTop = logEl.scrollHeight;
+  }
 }
 
 // ── Grid View ──
