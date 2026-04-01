@@ -9,6 +9,12 @@ export interface PaneData {
   rate_k_per_min: number;
   eta_800k_min: number | null;
   ctx_pct: number;
+  // Extended fields from bridge server
+  status?: string;
+  cost_usd?: number;
+  model?: string;
+  cwd?: string;
+  sub_agents?: { agent_id: string; agent_type: string; status: string; name: string }[];
 }
 
 export interface StateMessage {

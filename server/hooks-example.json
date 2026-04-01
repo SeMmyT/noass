@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PreToolUse": [{ "type": "command", "command": "curl -s -X POST http://localhost:3333/event -H 'Content-Type: application/json' -d \"$(cat)\"" }],
+    "PostToolUse": [{ "type": "command", "command": "curl -s -X POST http://localhost:3333/event -H 'Content-Type: application/json' -d \"$(cat)\"" }],
+    "PostToolUseFailure": [{ "type": "command", "command": "curl -s -X POST http://localhost:3333/event -H 'Content-Type: application/json' -d \"$(cat)\"" }],
+    "Notification": [{ "type": "command", "command": "curl -s -X POST http://localhost:3333/event -H 'Content-Type: application/json' -d \"$(cat)\"" }],
+    "Stop": [{ "type": "command", "command": "curl -s -X POST http://localhost:3333/event -H 'Content-Type: application/json' -d \"$(cat)\"" }],
+    "SubagentStart": [{ "type": "command", "command": "curl -s -X POST http://localhost:3333/event -H 'Content-Type: application/json' -d \"$(cat)\"" }],
+    "SubagentStop": [{ "type": "command", "command": "curl -s -X POST http://localhost:3333/event -H 'Content-Type: application/json' -d \"$(cat)\"" }]
+  }
+}
