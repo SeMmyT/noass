@@ -1,5 +1,6 @@
 import {
   AgentState, type AgentStateValue, type HookEvent, type SessionState, type SubAgent,
+  type ConversationEntry,
   deriveStatus, summarizeToolInput, isAlive, parseHookEvent,
 } from "./models";
 
@@ -26,6 +27,7 @@ export interface PaneData {
   model?: string;
   cwd?: string;
   sub_agents?: SubAgent[];
+  conversation?: ConversationEntry[];
 }
 
 export interface StateMessage {
@@ -47,11 +49,41 @@ export class SessionStore {
   private labels = new Map<string, string>();
   private agents = new Map<string, Map<string, SubAgent>>();
   private pendingAgentNames = new Map<string, string[]>();
+  private conversations = new Map<string, ConversationEntry[]>();
   private log: LogEntry[] = [];
   private startTime = Date.now();
+  private static MAX_CONVERSATION = 50;
 
   getSessions(): Map<string, SessionState> {
     return this.sessions;
+  }
+
+  getLog(): LogEntry[] {
+    return this.log;
+  }
+
+  getConversations(): Map<string, ConversationEntry[]> {
+    return this.conversations;
+  }
+
+  getConversation(sessionId: string): ConversationEntry[] {
+    return this.conversations.get(sessionId) ?? [];
+  }
+
+  hydrate(data: {
+    sessions: Record<string, SessionState>;
+    log: LogEntry[];
+    conversations: Record<string, ConversationEntry[]>;
+  }): void {
+    this.sessions = new Map(Object.entries(data.sessions));
+    this.log = data.log;
+    this.conversations = new Map(Object.entries(data.conversations));
+    // Rebuild labels from sessions
+    for (const [sid, s] of this.sessions) {
+      if (s.label && s.label !== sid.slice(0, 8)) {
+        this.labels.set(sid, s.label);
+      }
+    }
   }
 
   processEvent(raw: HookEvent | Record<string, unknown>): TransitionResult {
@@ -124,6 +156,18 @@ export class SessionStore {
     this.log.push({ event: event.event_name, name: label, timestamp: Date.now(), detail: last });
     if (this.log.length > 100) this.log.splice(0, this.log.length - 100);
 
+    // Accumulate conversation entries
+    const conv = this.conversations.get(event.session_id) ?? [];
+    if (event.event_name === "UserPromptSubmit" && event.message) {
+      conv.push({ role: "user", text: event.message.slice(0, 500), timestamp: Date.now() });
+    } else if (event.event_name === "Stop" && event.last_assistant_message) {
+      conv.push({ role: "assistant", text: event.last_assistant_message.slice(0, 500), timestamp: Date.now() });
+    } else if (event.event_name === "Notification" && event.message) {
+      conv.push({ role: "notification", text: event.message.slice(0, 500), timestamp: Date.now() });
+    }
+    if (conv.length > SessionStore.MAX_CONVERSATION) conv.splice(0, conv.length - SessionStore.MAX_CONVERSATION);
+    this.conversations.set(event.session_id, conv);
+
     return {
       session_id: event.session_id,
       new_status: newStatus,
@@ -167,6 +211,7 @@ export class SessionStore {
         model: s.model ?? undefined,
         cwd: s.cwd ?? undefined,
         sub_agents: s.sub_agents.length > 0 ? s.sub_agents : undefined,
+        conversation: this.conversations.get(s.session_id),
       });
     }
 

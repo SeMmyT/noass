@@ -103,4 +103,55 @@ describe("SessionStore", () => {
     const msg = store.toStateMessage();
     expect(msg.log.length).toBe(2);
   });
+
+  // Conversation tests
+  it("accumulates user prompt as conversation entry", () => {
+    store.processEvent({ event_name: "UserPromptSubmit", session_id: "s1", message: "fix the bug" });
+    expect(store.getConversation("s1")).toHaveLength(1);
+    expect(store.getConversation("s1")[0].role).toBe("user");
+    expect(store.getConversation("s1")[0].text).toBe("fix the bug");
+  });
+
+  it("accumulates assistant response as conversation entry", () => {
+    store.processEvent({ event_name: "Stop", session_id: "s1", last_assistant_message: "I fixed the bug in server.ts" });
+    expect(store.getConversation("s1")).toHaveLength(1);
+    expect(store.getConversation("s1")[0].role).toBe("assistant");
+  });
+
+  it("accumulates notification as conversation entry", () => {
+    store.processEvent({ event_name: "Notification", session_id: "s1", notification_type: "permission_prompt", message: "Allow Bash?" });
+    expect(store.getConversation("s1")).toHaveLength(1);
+    expect(store.getConversation("s1")[0].role).toBe("notification");
+  });
+
+  it("conversation appears in StateMessage panes", () => {
+    store.processEvent({ event_name: "UserPromptSubmit", session_id: "s1", message: "hello" });
+    store.processEvent({ event_name: "Stop", session_id: "s1", last_assistant_message: "hi there" });
+    const msg = store.toStateMessage();
+    expect(msg.panes[0].conversation).toHaveLength(2);
+    expect(msg.panes[0].conversation![0].role).toBe("user");
+    expect(msg.panes[0].conversation![1].role).toBe("assistant");
+  });
+
+  it("conversation caps at 50 entries", () => {
+    for (let i = 0; i < 55; i++) {
+      store.processEvent({ event_name: "UserPromptSubmit", session_id: "s1", message: `msg ${i}` });
+    }
+    expect(store.getConversation("s1")).toHaveLength(50);
+    expect(store.getConversation("s1")[0].text).toBe("msg 5");
+  });
+
+  // Hydration tests
+  it("hydrate restores sessions and conversations", () => {
+    store.hydrate({
+      sessions: { "s1": { session_id: "s1", status: "thinking", previous_status: null, tool: null, tool_input_summary: "", message: "", event: "UserPromptSubmit", label: "test", sub_agents: [], ts: new Date().toISOString(), context_percent: 30, cost_usd: 1.5, model: null, cwd: null } as any },
+      log: [{ event: "UserPromptSubmit", name: "test", timestamp: Date.now() }],
+      conversations: { "s1": [{ role: "user" as const, text: "cached prompt", timestamp: Date.now() }] },
+    });
+    expect(store.getSessions().has("s1")).toBe(true);
+    expect(store.getConversation("s1")).toHaveLength(1);
+    expect(store.getConversation("s1")[0].text).toBe("cached prompt");
+    const msg = store.toStateMessage();
+    expect(msg.panes[0].conversation).toHaveLength(1);
+  });
 });

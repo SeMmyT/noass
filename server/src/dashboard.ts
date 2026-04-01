@@ -95,8 +95,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .fs-log .entry.awaiting .entry-event{color:var(--yellow)}
 .fs-log .entry.tool-evt{display:none}
 .fs-log.show-tools .entry.tool-evt{display:block}
-.filter-toggle{font-size:10px;color:var(--dim);display:flex;align-items:center;gap:4px;cursor:pointer;margin-left:auto}
+.filter-toggle{font-size:10px;color:var(--dim);display:flex;align-items:center;gap:4px;cursor:pointer}
 .filter-toggle input{accent-color:var(--accent)}
+.fs-tabs{display:flex;gap:4px;margin-left:auto}
+.fs-tab{background:var(--card);border:1px solid var(--border);color:var(--dim);
+  padding:3px 10px;border-radius:4px;font-size:10px;cursor:pointer;font-family:inherit}
+.fs-tab.active{color:var(--accent);border-color:var(--accent)}
+.fs-tab:hover{border-color:var(--accent)}
+
+/* ── Conversation thread ── */
+.conv-thread{flex:1;overflow-y:auto;padding:12px;display:none;flex-direction:column;gap:8px}
+.conv-thread.active{display:flex}
+.fs-log.active{display:block}
+.fs-log{display:none}
+.conv-msg{max-width:85%;padding:8px 12px;border-radius:8px;font-size:12px;line-height:1.5;word-break:break-word;white-space:pre-wrap}
+.conv-msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:2px}
+.conv-msg.assistant{align-self:flex-start;background:var(--card);border:1px solid var(--border);border-bottom-left-radius:2px}
+.conv-msg.notification{align-self:center;background:#2a2a1a;color:var(--yellow);font-size:11px;font-style:italic;max-width:95%}
+.conv-msg .conv-time{font-size:9px;opacity:.5;margin-top:4px;display:block}
+.conv-empty{text-align:center;color:var(--dim);padding:40px;font-size:13px}
 .fs-input{flex-shrink:0;padding:8px 12px;border-top:1px solid var(--border);background:var(--bg)}
 
 /* ── Grid view ── */
@@ -348,8 +365,13 @@ function renderFullscreen(msg){
       <span class="badge \${statusColor(st)}">\${st.replace(/_/g,' ')}</span>
       <span class="fs-title">\${esc(p.name)}</span>
       <span class="fs-meta">\${p.ctx_pct?Math.round(p.ctx_pct)+'% ctx':''} \${p.cost_usd!=null?'$'+p.cost_usd.toFixed(2):''} \${p.model||''}</span>
-      <label class="filter-toggle"><input type="checkbox" id="show-tools" \${showToolCalls?'checked':''}> Tool calls</label>
+      <label class="filter-toggle"><input type="checkbox" id="show-tools" \${showToolCalls?'checked':''}> Tools</label>
+      <div class="fs-tabs">
+        <button class="fs-tab active" data-tab="chat">Chat</button>
+        <button class="fs-tab" data-tab="log">Log</button>
+      </div>
     </div>
+    <div class="conv-thread active"></div>
     <div class="fs-log\${showToolCalls?' show-tools':''}"></div>
     <div class="fs-input">
       <div class="qa-row">
@@ -377,6 +399,32 @@ function renderFullscreen(msg){
     logEl.appendChild(div);
   }
   logEl.scrollTop = logEl.scrollHeight;
+
+  // Render conversation thread
+  const convEl = fs.querySelector('.conv-thread');
+  const conv = p.conversation || [];
+  if(conv.length){
+    for(const c of conv){
+      const div = document.createElement('div');
+      div.className='conv-msg '+c.role;
+      div.innerHTML=esc(c.text)+\`<span class="conv-time">\${fmtTime(c.timestamp)}</span>\`;
+      convEl.appendChild(div);
+    }
+    convEl.scrollTop=convEl.scrollHeight;
+  } else {
+    convEl.innerHTML='<div class="conv-empty">No conversation yet — waiting for prompts and responses...</div>';
+  }
+
+  // Tab switching
+  fs.querySelectorAll('.fs-tab').forEach(tab=>{
+    tab.addEventListener('click',()=>{
+      fs.querySelectorAll('.fs-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      const isChat = tab.dataset.tab==='chat';
+      convEl.classList.toggle('active',isChat);
+      logEl.classList.toggle('active',!isChat);
+    });
+  });
 
   fs.querySelector('#show-tools').addEventListener('change',function(){
     showToolCalls=this.checked;
@@ -426,6 +474,27 @@ function updateFullscreenLive(fs, p, msg){
   // Auto-scroll if near bottom
   if(logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 100){
     logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // Append new conversation entries
+  const convEl = fs.querySelector('.conv-thread');
+  if(convEl){
+    const pane = lastMsg?.panes.find(p=>p.session_id===focusedSession);
+    const conv = pane?.conversation || [];
+    const rendered = convEl.querySelectorAll('.conv-msg').length;
+    for(let i=rendered;i<conv.length;i++){
+      const c = conv[i];
+      const div = document.createElement('div');
+      div.className='conv-msg '+c.role;
+      div.innerHTML=esc(c.text)+\`<span class="conv-time">\${fmtTime(c.timestamp)}</span>\`;
+      convEl.appendChild(div);
+      // Remove empty placeholder
+      const empty=convEl.querySelector('.conv-empty');
+      if(empty) empty.remove();
+    }
+    if(convEl.scrollHeight - convEl.scrollTop - convEl.clientHeight < 100){
+      convEl.scrollTop=convEl.scrollHeight;
+    }
   }
 }
 

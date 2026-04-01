@@ -96,6 +96,12 @@ export function deriveStatus(event: HookEvent): AgentStateValue {
   }
 }
 
+export interface ConversationEntry {
+  role: "user" | "assistant" | "notification";
+  text: string;
+  timestamp: number;
+}
+
 export function summarizeToolInput(input: Record<string, unknown>): string {
   const s = (input.command ?? input.file_path ?? JSON.stringify(input)) as string;
   return s.slice(0, 128);
