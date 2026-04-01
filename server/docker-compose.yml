@@ -1,0 +1,16 @@
+services:
+  noass:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:3004:3333"
+    environment:
+      - PORT=3333
+      - NTFY_TOPIC=${NTFY_TOPIC:-}
+    volumes:
+      - noass-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  noass-data:

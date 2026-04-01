@@ -1,11 +1,13 @@
 import { serve } from "@hono/node-server";
 import { WebSocketServer, WebSocket } from "ws";
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { mkdirSync } from "node:fs";
 import { app, store, setBroadcast } from "./app";
 import { saveToDisk, loadFromDisk, hydrateStore } from "./persistence";
 
 const port = Number(process.env.PORT) || 3333;
-const cachePath = process.env.NOASS_CACHE_PATH || resolve("noass-cache.json");
+const cachePath = process.env.NOASS_CACHE_PATH || resolve("data/noass-cache.json");
+mkdirSync(dirname(cachePath), { recursive: true });
 
 // Load cached sessions before starting
 const cache = await loadFromDisk(cachePath);
