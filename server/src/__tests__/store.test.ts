@@ -28,6 +28,7 @@ describe("SessionStore", () => {
     const msg = store.toStateMessage();
     expect(msg.type).toBe("state");
     expect(msg.panes).toHaveLength(1);
+    expect(msg.panes[0].session_id).toBe("s1");
     expect(msg.panes[0].name).toBe("s1");
     expect(msg.panes[0].alive).toBe(true);
     expect(msg.stats.total_panes).toBe(1);

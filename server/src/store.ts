@@ -13,6 +13,7 @@ export interface TransitionResult {
 
 export interface PaneData {
   idx: number;
+  session_id: string;
   name: string;
   alive: boolean;
   ctx_k: number;
@@ -153,6 +154,7 @@ export class SessionStore {
       const ctxK = Math.round(ctxPct * 8);
       panes.push({
         idx: idx++,
+        session_id: s.session_id,
         name: s.label,
         alive: isAlive(s.status),
         ctx_k: ctxK,
