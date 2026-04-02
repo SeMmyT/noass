@@ -10,7 +10,7 @@
 #   }
 set -uo pipefail
 
-NOASS_URL="${NOASS_URL:-http://localhost:3333}"
+NOASS_URL="${NOASS_URL:-https://noass.semmy.dev}"
 BRIDGE_URL="${CCSAVER_BRIDGE_URL:-http://localhost:4002}"
 INPUT=$(cat)
 
@@ -36,7 +36,10 @@ metrics = {
 }
 
 body = json.dumps(metrics).encode()
-headers = {'Content-Type': 'application/json'}
+headers = {
+    'Content-Type': 'application/json',
+    'X-Webhook-Key': sys.argv[4],
+}
 
 for base in [sys.argv[2], sys.argv[3]]:
     url = base + '/session/' + session_id + '/metrics'
@@ -45,7 +48,7 @@ for base in [sys.argv[2], sys.argv[3]]:
         urllib.request.urlopen(req, timeout=2)
     except Exception:
         pass
-" "$INPUT" "$NOASS_URL" "$BRIDGE_URL" >/dev/null 2>&1 &
+" "$INPUT" "$NOASS_URL" "$BRIDGE_URL" "${NOASS_WEBHOOK_KEY:-5f7b795ffa3d125ff2e076e4139577149a388bc4b107cb00e4e851143431c6b9}" >/dev/null 2>&1 &
 
 # Pass through to ccstatusline for terminal display
 if command -v ccstatusline >/dev/null 2>&1; then

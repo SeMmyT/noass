@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { getCookie } from "hono/cookie";
 import { SessionStore } from "./store";
 import { AgentState } from "./models";
 import { sendNotification, pruneDebounce } from "./ntfy";
@@ -65,6 +66,8 @@ app.get("/auth/verify", (c) => {
 });
 
 app.get("/auth/logout", (c) => {
+  const sid = getCookie(c, "noass_session");
+  if (sid) deleteSession(sid);
   clearSessionCookie(c);
   return c.redirect("/auth/login");
 });
