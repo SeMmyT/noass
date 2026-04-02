@@ -314,7 +314,7 @@ function updateCard(el, p){
 
   let metaHtml='';
   if(p.last)metaHtml+=\`<span class="tool">\${esc(p.last.slice(0,80))}</span>\`;
-  if(p.cwd)metaHtml+=\`<span class="cwd">\${shortCwd(p.cwd)}</span>\`;
+  if(p.cwd)metaHtml+=\`<span class="cwd">\${esc(shortCwd(p.cwd))}</span>\`;
   if(p.sub_agents&&p.sub_agents.length){
     metaHtml+='<div class="subagents">'+p.sub_agents.map(a=>
       \`<span class="sa">\${esc(a.name||a.agent_type)}</span>\`).join('')+'</div>';
@@ -365,7 +365,7 @@ function renderFullscreen(msg){
       <button class="fs-back">&larr;</button>
       <span class="badge \${statusColor(st)}">\${st.replace(/_/g,' ')}</span>
       <span class="fs-title">\${esc(p.name)}</span>
-      <span class="fs-meta">\${p.ctx_pct?Math.round(p.ctx_pct)+'% ctx':''} \${p.cost_usd!=null?'$'+p.cost_usd.toFixed(2):''} \${p.model||''}</span>
+      <span class="fs-meta">\${p.ctx_pct?Math.round(p.ctx_pct)+'% ctx':''} \${p.cost_usd!=null?'$'+p.cost_usd.toFixed(2):''} \${esc(p.model||'')}</span>
       <label class="filter-toggle"><input type="checkbox" id="show-tools" \${showToolCalls?'checked':''}> Tools</label>
       <div class="fs-tabs">
         <button class="fs-tab active" data-tab="chat">Chat</button>

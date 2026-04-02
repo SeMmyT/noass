@@ -172,17 +172,22 @@ export class SessionStore {
       session_id: event.session_id,
       new_status: newStatus,
       previous_status: previousStatus,
-      transitioned: previousStatus !== null && previousStatus !== newStatus,
+      transitioned: previousStatus !== newStatus,
       session,
     };
   }
+
+  private static readonly METRICS_ALLOWLIST = new Set([
+    "context_percent", "cost_usd", "model", "cwd",
+    "lines_added", "lines_removed", "duration_ms", "api_duration_ms",
+  ]);
 
   updateMetrics(sessionId: string, metrics: Record<string, unknown>): boolean {
     const session = this.sessions.get(sessionId);
     if (!session) return false;
     let changed = false;
     for (const [key, val] of Object.entries(metrics)) {
-      if (key in session && val !== undefined) {
+      if (SessionStore.METRICS_ALLOWLIST.has(key) && val !== undefined) {
         (session as any)[key] = val;
         changed = true;
       }
