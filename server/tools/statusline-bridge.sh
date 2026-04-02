@@ -38,7 +38,7 @@ metrics = {
 body = json.dumps(metrics).encode()
 headers = {
     'Content-Type': 'application/json',
-    'X-Webhook-Key': sys.argv[4],
+    'Authorization': 'Bearer ' + sys.argv[4],
 }
 
 for base in [sys.argv[2], sys.argv[3]]:
