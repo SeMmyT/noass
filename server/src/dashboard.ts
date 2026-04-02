@@ -147,6 +147,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     <span id="count" class="ctx"></span>
     <button class="view-btn active" data-view="cards">Cards</button>
     <button class="view-btn" data-view="grid">Grid</button>
+    <a href="/auth/logout" class="view-btn" style="text-decoration:none;font-size:11px;color:var(--dim)">Logout</a>
   </div>
   <div class="broadcast">
     <input id="bc-input" placeholder="broadcast to all sessions..." autocomplete="off">
